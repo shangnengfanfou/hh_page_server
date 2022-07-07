@@ -1,6 +1,7 @@
 import * as http from 'http'
 import * as crypto from 'crypto'
-import * as queryString from 'querystring'
+import { Status } from './utils'
+import { Stream } from 'stream'
 
 interface ObjectData<T = any> {
   [propName: string]: T
@@ -144,10 +145,49 @@ export default class Context {
     this.res.end()
   }
 
+  respond() {
+    if (!this.res.writable) return
+
+    const res = this.res
+    const req = this.req
+    let body = this.body
+    const code = res.statusCode
+    let data = null
+    // ignore body
+    if (!Status[code]) {
+      // strip headers
+      this.body = null
+      return res.end()
+    }
+
+    if (req.method === 'HEAD') {
+      return res.end()
+    }
+
+    // status body
+    if (body == null) {
+      if (req.httpVersionMajor >= 2) {
+        data = String(code)
+      } else {
+      }
+      return res.end(data)
+    }
+
+    // responses
+    if (Buffer.isBuffer(body)) return res.end(body)
+    if (typeof body === 'string') return res.end(body)
+    if (body instanceof Stream) return body.pipe(res)
+
+    // body: json
+    data = JSON.stringify(body)
+    res.end(body)
+  }
+
   constructor(req: http.IncomingMessage, res: http.ServerResponse) {
     this.requestId = crypto.randomBytes(16).toString('hex')
     this.req = req
     this.res = res
+    this.body = null
     this.parseIp()
     this.parseQuery()
     this.parseCookie()

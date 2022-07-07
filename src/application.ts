@@ -36,10 +36,10 @@ export default class Application extends EventEmitter {
     const res = ctx.res
     res.statusCode = 404
     // TODO
-    // const onerror = err => ctx.onerror(err)
-    // const handleResponse = () => respond(ctx)
+    const onerror = err => ctx.onerror(err)
+    const handleResponse = () => ctx.respond(ctx)
     // onFinished(res, onerror)
-    // return fnMiddleware(ctx).then(handleResponse).catch(onerror)
+    return fnMiddleware(ctx).then(handleResponse).catch(onerror)
   }
 
   createContext (req: http.IncomingMessage, res: http.ServerResponse) {
