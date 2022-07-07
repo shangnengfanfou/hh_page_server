@@ -15,6 +15,10 @@ export default class Application extends EventEmitter {
     this.middleware = []
     this.compose = compose
   }
+  use (wm: Middleware) {
+    this.middleware.push(wm)
+    return this
+  }
 
   listen (port: number, host = '0.0.0.0') {
     this.server = http.createServer(this.callback())
