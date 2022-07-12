@@ -25,6 +25,7 @@ export default class Context {
   env: ObjectData = {}
   req: http.IncomingMessage
   res: http.ServerResponse
+  params: ObjectData = {}
   query: ObjectData = {}
   body: ObjectData = null
   cookies: ObjectData = {}
@@ -188,6 +189,7 @@ export default class Context {
     this.req = req
     this.res = res
     this.body = null
+    this.params = {}
     this.parseIp()
     this.parseQuery()
     this.parseCookie()
