@@ -1,7 +1,6 @@
 import { ParamsMeta, ParamType } from './utils'
-import { plainToClass, ClassTransformer } from 'class-transformer'
+import { plainToClass } from 'class-transformer'
 import { validate } from 'class-validator'
-import { Methods, MetadataKey } from './utils'
 import Context from '../context'
 
 export const parseParam = async (ctx: Context, metadata: ParamsMeta) => {

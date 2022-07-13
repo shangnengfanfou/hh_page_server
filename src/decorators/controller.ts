@@ -3,17 +3,17 @@ import { paramsMap } from './parameter';
 import { parseParam } from './parseParams';
 import { Methods, MetadataKey } from './utils'
 import Context from '../context'
+import compose from '../compose'
 
-type RouteCallback = (ctx: Context) => Promise<any>
+type RouteCallback = (...params: any[]) => Promise<any>
 
-interface Route<T> {
+interface Route {
     path: string
     type: Methods
     callback: RouteCallback
-    schema?: T
   }
   
-let routes: Route<any>[] = []
+let routes: Route[] = []
 
 /**
  * @function 类注解
@@ -36,7 +36,7 @@ export function Controller(routePrefix: string) {
             const method: Methods = Reflect.getMetadata(MetadataKey.METHOD, target.prototype, key);
             // 获取原型成员上的中间件
             const middlewares = Reflect.getMetadata(MetadataKey.MIDDLEWARE, target.prototype, key) || [];
-
+            const middlewareCompose = compose(middlewares)
             const asyncHandler = func => async (ctx: Context) => {
                 const paramValues = [];
                 const params = paramsMap.get(routeHandler);
@@ -63,23 +63,16 @@ export function Controller(routePrefix: string) {
                         ctx.res.end('{}');
                     });
             }
-            const middlewareAsyncHandler = func => async (ctx: Context) => {
-                return Promise
-                    .resolve(func(ctx))
-                    .catch(err => {
-                        err = err?.message || err || 'inner server error'
-                        ctx.res.statusCode = 500 
-                        ctx.res.end('{}');
-                    });
-            }
-            const asyncHandlerMiddlewares = middlewares.map(middleware => middlewareAsyncHandler(middleware));
             const asyncRouteHandler = asyncHandler(routeHandler);
+            const callback = (ctx: Context) => {
+                return Promise.resolve(middlewareCompose(ctx, null).then(() => asyncRouteHandler(ctx)))
+            }
             // 生成校验器控件
             if (path || path === "") { // 生成路由
                routes.push({
                     path: `${routePrefix}${path}`,
                     type: method,
-                    callback: () => null
+                    callback
                })
             }
         }
