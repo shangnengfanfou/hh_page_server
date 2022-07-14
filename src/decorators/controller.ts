@@ -1,19 +1,19 @@
 import "reflect-metadata";
+import { pathToRegexp, match } from "path-to-regexp"
 import { paramsMap } from './parameter';
 import { parseParam } from './parseParams';
 import { Methods, MetadataKey } from './utils'
 import Context from '../context'
-import compose from '../compose'
-
-type RouteCallback = (...params: any[]) => Promise<any>
-
+import { Middleware } from '../middleware'
 interface Route {
-    path: string
+    path: RegExp
+    pathMatch: Function
     type: Methods
-    callback: RouteCallback
+    routeMiddlewares: Middleware[]
+    routeHandler: (ctx: Context) => Promise<any>
   }
   
-let routes: Route[] = []
+export const routes: Route[] = []
 
 /**
  * @function 类注解
@@ -36,43 +36,33 @@ export function Controller(routePrefix: string) {
             const method: Methods = Reflect.getMetadata(MetadataKey.METHOD, target.prototype, key);
             // 获取原型成员上的中间件
             const middlewares = Reflect.getMetadata(MetadataKey.MIDDLEWARE, target.prototype, key) || [];
-            const middlewareCompose = compose(middlewares)
             const asyncHandler = func => async (ctx: Context) => {
                 const paramValues = [];
                 const params = paramsMap.get(routeHandler);
                 if (params) {
                     const keys = Object.keys(params);
                     for (const key of keys) {
-                        try {
-                            paramValues[Number(key)] = await parseParam(ctx, params[key])
-                        } catch (err) {
-                            ctx.res.statusCode = 400 
-                            ctx.res.end('{}');
-                            return null;
-                        }
+                        paramValues[Number(key)] = await parseParam(ctx, params[key])
                     }
                 }
-                return Promise
-                    .resolve(func(...paramValues))
-                    .then((data) => {
-                        ctx.res.end(data);
+                return new Promise((resolve, reject) => {
+                    func(...paramValues)
+                    .then((data: any) => {
+                        ctx.respData = data
+                        resolve(data)
                     })
-                    .catch(err => {
-                        err = err?.message || err || 'inner server error'
-                        ctx.res.statusCode = 500 
-                        ctx.res.end('{}');
-                    });
+                    .catch(reject)
+                })
             }
             const asyncRouteHandler = asyncHandler(routeHandler);
-            const callback = (ctx: Context) => {
-                return Promise.resolve(middlewareCompose(ctx, null).then(() => asyncRouteHandler(ctx)))
-            }
             // 生成校验器控件
             if (path || path === "") { // 生成路由
                routes.push({
-                    path: `${routePrefix}${path}`,
+                    path: pathToRegexp(`${routePrefix}${path}`),
+                    pathMatch: match(`${routePrefix}${path}`),
                     type: method,
-                    callback
+                    routeMiddlewares: middlewares,
+                    routeHandler: asyncRouteHandler
                })
             }
         }

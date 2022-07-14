@@ -19,11 +19,10 @@ export function params(type: ParamType, param?: string) {
     }
 }
 
-export const Query = (param?: string) => params(ParamType.query, param);
-export const Body = (param?: string) => params(ParamType.body, param);
-export const Param = (param?: string) => params(ParamType.param, param);
-export const File = (param?: string) => params(ParamType.file, param);
-export const Req = () => params(ParamType.req);
-export const Res = () => params(ParamType.res);
-export const Next = () => params(ParamType.next);
-
+export const Query = (param?: string) => params(ParamType.QUERY, param);
+export const Body = (param?: string) => params(ParamType.BODY, param);
+export const Param = (param?: string) => params(ParamType.PARAM, param);
+export const Ctx = () => params(ParamType.CTX)
+type FormDataParamType = 'data' | 'files'
+export const FormData = (param?: FormDataParamType) => params(ParamType.FORM_DATA, param)
+export const Cookie = (param?: string) => params(ParamType.COOKIE, param)

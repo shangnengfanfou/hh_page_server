@@ -1,7 +1,9 @@
 import * as http from 'http'
 import * as crypto from 'crypto'
 import { Status } from './utils'
-import { Stream } from 'stream'
+import { Stream, PassThrough } from 'stream'
+import * as formidable from 'formidable'
+import * as util from 'util'
 
 interface ObjectData<T = any> {
   [propName: string]: T
@@ -22,6 +24,7 @@ export default class Context {
   requestId: string
   ip = ''
   url = ''
+  pathRegexp: RegExp = null
   env: ObjectData = {}
   req: http.IncomingMessage
   res: http.ServerResponse
@@ -30,6 +33,10 @@ export default class Context {
   body: ObjectData = null
   cookies: ObjectData = {}
   log: ObjectData = {}
+  bodyStream: PassThrough
+  files: formidable.Files = null
+  respData: any
+
 
   // 解析query参数
   parseQuery() {
@@ -80,6 +87,10 @@ export default class Context {
   parseBody() {
     return new Promise((resolve, reject) => {
       if (this.body !== null) return resolve(null)
+      const contentType = this.req.headers['content-type']
+      if (!contentType?.includes('application/json') && !contentType?.includes('application/x-www-form-urlencoded')) {
+        return resolve(null)
+      }
       let chunks: Buffer[] = []
       let size = 0
       this.req.on('data', (chunk: Buffer) => {
@@ -94,16 +105,41 @@ export default class Context {
       // request数据发送完
       this.req.on('end', () => {
         try {
+          const buf = Buffer.concat(chunks)
+          const payload = buf.toString('utf-8')
           // 如果声明了json类型，尝试解析为json
-          if (this.req.headers['content-type'].includes('application/json')) {
-            this.body = JSON.parse(Buffer.concat(chunks).toString('utf-8'))
+          if (this.req.headers['content-type'].includes('application/json') && payload) {
+            this.body = JSON.parse(payload)
           }
+          if (contentType.includes('application/x-www-form-urlencoded') && payload) {
+            this.body = this.groupParamsByKey(new URLSearchParams(payload))
+          }
+          this.bodyStream = new Stream.PassThrough();
+          this.bodyStream.end(buf);
         } catch (error) {
           this.body= {}
         }
         resolve(null)
       })
     })
+  }
+
+  parseFormData(options = { multiples: true }) {
+    return new Promise((resolve, reject) => {
+      if (this.body !== null) return resolve(null)
+      const contentType = this.req.headers['content-type']
+      if (!contentType?.includes('multipart/form-data')) {
+          return reject('INVALID_FORM_DATA');
+      }
+      const form = formidable(options);
+      form.parse(this.req, (err, fields, files) => {
+          if (err)
+              reject(err);
+          this.body = fields
+          this.files = files
+          resolve(null);
+      });
+    });
   }
 
   // 返回JSON数据
@@ -146,18 +182,18 @@ export default class Context {
     this.res.end()
   }
 
-  respond() {
+  respond(data1: any) {
     if (!this.res.writable) return
 
     const res = this.res
     const req = this.req
-    let body = this.body
+    let body = this.respData
     const code = res.statusCode
     let data = null
     // ignore body
     if (!Status[code]) {
       // strip headers
-      this.body = null
+      this.respData = null
       return res.end()
     }
 
@@ -180,8 +216,17 @@ export default class Context {
     if (body instanceof Stream) return body.pipe(res)
 
     // body: json
+    res.setHeader('Content-type', 'application/json')
     data = JSON.stringify(body)
-    res.end(body)
+    res.end(data)
+  }
+
+  onerror (err) {
+    const res = this.res
+    let statusCode = err.status || err.statusCode || 500
+    res.statusCode = statusCode
+    const msg = err.message
+    res.end(msg)
   }
 
   constructor(req: http.IncomingMessage, res: http.ServerResponse) {

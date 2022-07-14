@@ -5,24 +5,18 @@ import Context from '../context'
 
 export const parseParam = async (ctx: Context, metadata: ParamsMeta) => {
     switch (metadata.type) {
-        case ParamType.query:
+        case ParamType.QUERY:
             return await parseQueryParam(ctx.query, metadata);
-            break;
-        case ParamType.body:
+        case ParamType.BODY:
             return await parseBodyParam(ctx.body, metadata);
-            break;
-        case ParamType.param:
+        case ParamType.PARAM:
             return await parseParamParam(ctx.params, metadata);
-            break;
-        case ParamType.req:
-            return ctx.req;
-            break;
-        case ParamType.res:
+        case ParamType.CTX:
+            return ctx;
+        case ParamType.FORM_DATA:
             return ctx.res;
-            break;
-        case ParamType.file:
-            // return await parseQueryParam(req.file, metadata);
-            break;
+        case ParamType.COOKIE:
+            return await parseQueryParam(ctx.cookies, metadata);
         default: 
             return null;
     }
@@ -68,7 +62,7 @@ const parseBodyParam = async (body: object, metadata: ParamsMeta) => {
             return value;
         }
         throw new Error(`${param} should be a ${paramtype.name.toLowerCase()}, ${typeof value} given`);
-    } else if(['Object', 'String', 'Boolean', 'Number', 'Array', 'Object'].includes(metadata.paramtype.name)) {
+    } else if(['Object', 'String', 'Boolean', 'Number', 'Array'].includes(metadata.paramtype.name)) {
         throw new Error('must define a dto to parse all body params');
     } else {
         let entity = plainToClass(metadata.paramtype, body) as any;
@@ -86,7 +80,7 @@ const parseParamParam = async (params: object, metadata: ParamsMeta) => {
         const value = params[param];
         const paramtype = metadata.paramtype;
         return transformer(param, value, paramtype)
-    } else if(['Object', 'String', 'Boolean', 'Number', 'Array', 'Object'].includes(metadata.paramtype.name)) {
+    } else if(['Object', 'String', 'Boolean', 'Number', 'Array'].includes(metadata.paramtype.name)) {
         throw new Error('must define a dto to parse all param params');
     } else {
         let entity = plainToClass(metadata.paramtype, params) as any;

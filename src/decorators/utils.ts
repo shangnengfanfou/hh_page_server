@@ -6,11 +6,11 @@ export enum MetadataKey {
 }
 
 export enum Methods {
-  GET = 'get',
-  POST = 'post',
-  PATCH = 'patch',
-  DEL = 'delete',
-  PUT = 'put'
+  GET = 'GET',
+  POST = 'POST',
+  PATCH = 'PATCH',
+  DEL = 'DELETE',
+  PUT = 'PUT'
 }
 
 export interface ParamsMeta {
@@ -22,11 +22,10 @@ export interface ParamsMeta {
 }
 
 export enum ParamType {
-  query = "query",
-  body = "body",
-  param = "param",
-  req = "req", 
-  res = "res", 
-  next = "next",
-  file = "file"
+  QUERY = "query",
+  BODY = "body",
+  PARAM = "param",
+  CTX = "ctx", 
+  FORM_DATA = "formData",
+  COOKIE = "cookie"
 } 

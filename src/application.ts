@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import { Middleware } from './middleware'
 import compose from './compose'
 import Context from './context'
+import { routes } from './decorators/controller'
 
 export default class Application extends EventEmitter {
   server: http.Server
@@ -26,24 +27,36 @@ export default class Application extends EventEmitter {
   }
 
   callback () {
-    const fn = this.compose(this.middleware)
     if (!this.listenerCount('error')) this.on('error', this.onerror)
-    const handleRequest = (req: http.IncomingMessage, res: http.ServerResponse) => {
+    const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
       const ctx = this.createContext(req, res)
-      return this.handleRequest(ctx, fn)
+      await ctx.parseBody()
+      await ctx.parseFormData()
+      return this.handleRequest(ctx)
     }
-
     return handleRequest
   }
 
-  handleRequest (ctx, fnMiddleware) {
+  handleRequest (ctx: Context) {
     const res = ctx.res
     res.statusCode = 404
-    // TODO
-    const onerror = err => ctx.onerror(err)
-    const handleResponse = () => ctx.respond(ctx)
-    // onFinished(res, onerror)
-    return fnMiddleware(ctx).then(handleResponse).catch(onerror)
+    for (let route of routes) {
+      const isMatch = route.pathMatch(ctx.url)
+      if (isMatch) {
+        if (ctx.req.method === route.type) {
+          ctx.res.statusCode = 200
+          ctx.pathRegexp = route.path
+          ctx.params = isMatch.params
+          const onerror = err => ctx.onerror(err)
+          const handleResponse = (data) => ctx.respond(data)
+          const middleware = [...this.middleware, ...route.routeMiddlewares, route.routeHandler]
+          const fnMiddleware = this.compose(middleware)
+          return fnMiddleware(ctx, null).then(handleResponse).catch(onerror)
+        } else {
+          ctx.res.statusCode = 405
+        }
+      }
+    }
   }
 
   createContext (req: http.IncomingMessage, res: http.ServerResponse) {
@@ -57,7 +70,7 @@ export default class Application extends EventEmitter {
       Object.prototype.toString.call(err) === '[object Error]' ||
       err instanceof Error
     if (!isNativeError) throw new TypeError(util.format('non-error thrown: %j', err))
-    if (err.status === 404 || err.expose) return
+    if (err.status === 404) return
     const msg = err.stack || err.toString()
     console.error(`\n${msg.replace(/^/gm, '  ')}\n`)
   }
