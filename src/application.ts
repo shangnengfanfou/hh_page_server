@@ -30,9 +30,15 @@ export default class Application extends EventEmitter {
     if (!this.listenerCount('error')) this.on('error', this.onerror)
     const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
       const ctx = this.createContext(req, res)
-      await ctx.parseBody()
-      await ctx.parseFormData()
-      return this.handleRequest(ctx)
+      try {
+        await ctx.parseBody()
+        await ctx.parseFormData()
+        return this.handleRequest(ctx).catch(err => {
+          throw err
+        })
+      } catch (err) {
+        ctx.onerror(err)
+      }
     }
     return handleRequest
   }

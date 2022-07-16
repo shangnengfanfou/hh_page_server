@@ -1,7 +1,4 @@
-import App from './src/application'
-import Context from './src/context'
-import { Next } from './src/middleware'
-import { Controller, Body, Post, Use, Param, Query, Get, FormData, Cookie } from './src/decorators'
+import { App, Context, Next, Controller, Body, Post, Use, Param, Query, Get, FormData, Cookie, Ctx } from './src'
 
 const app = new App()
 
@@ -53,6 +50,45 @@ class ApiController {
   async test2(@Param('id') id: string) {
     console.log('dddd', id)
     return {}
+  }
+}
+
+@Controller('/proxy')
+class ProxyController {
+  @Get('/test1/:id')
+  async test1(@Param('id') id: string, @Ctx() ctx: Context) {
+    const url = 'http://127.0.0.1:8091/api/stats/overview?startTime=1236&endTime=2323'
+    ctx.proxy(url)
+  }
+  @Get('/test2')
+  async test2(@Ctx() ctx: Context) {
+    console.log('proxy test2')
+    const wait20s = () => new Promise(resolve => setTimeout(resolve, 20000))
+    await wait20s()
+    return {
+      msg: 'proxy test2'
+    }
+  }
+
+  @Get('/test3')
+  async test3(@Ctx() ctx: Context) {
+    console.log('proxy test3')
+    const chunks = []
+    let size = 0
+    ctx.req.on('data', (chunk: Buffer) => {
+      chunks.push(chunk)
+      size += chunk.length
+      // 限制POST JSON的数据大小
+      if (size > 1024 * 1024 * 2) {
+        ctx.res.statusCode = 413
+      }
+    })
+    ctx.req.on('end', () =>{
+      console.log(chunks)
+    })
+    return {
+      msg: 'proxy test3'
+    }
   }
 }
 

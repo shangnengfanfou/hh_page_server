@@ -3,6 +3,15 @@ import * as crypto from 'crypto'
 import { Status } from './utils'
 import { Stream, PassThrough } from 'stream'
 import * as formidable from 'formidable'
+import * as httpProxy from 'http-proxy'
+
+const proxyServer = httpProxy.createProxyServer({
+  changeOrigin: true,
+  cookiePathRewrite: '/'
+});
+proxyServer.on('proxyRes', (proxyRes, req) => {
+  req.emit('res');
+});
 
 interface ObjectData<T = any> {
   [propName: string]: T
@@ -45,6 +54,7 @@ export default class Context {
   bodyStream: PassThrough
   files: File[] = null
   respData: any
+  isProxy: boolean = false
 
 
   // 解析query参数
@@ -138,7 +148,7 @@ export default class Context {
       if (this.body !== null) return resolve(null)
       const contentType = this.req.headers['content-type']
       if (!contentType?.includes('multipart/form-data')) {
-          return reject('INVALID_FORM_DATA');
+          return resolve(null)
       }
       const form = formidable(options);
       form.parse(this.req, (err, fields, files) => {
@@ -219,7 +229,7 @@ export default class Context {
 
   respond() {
     if (!this.res.writable) return
-
+    if (this.isProxy) return
     const res = this.res
     const req = this.req
     let body = this.respData
@@ -262,6 +272,38 @@ export default class Context {
     res.statusCode = statusCode
     const msg = err.message
     res.end(msg)
+  }
+
+  proxy(to: string, options = {}) {
+    this.isProxy = true
+    const url = new URL(to);
+    this.req.url = `${url.pathname}${url.search}`
+    return new Promise((resolve, reject) => {
+        this.req.once('res', resolve);
+        const connection = this.req.headers.connection || '';
+        const upgrade = this.req.headers.upgrade || '';
+        if (connection.toLowerCase() === 'upgrade' &&
+            upgrade.toLowerCase() === 'websocket') {
+            proxyServer.ws(this.req, this.req.socket, this.req.headers, {
+                target: url.origin,
+                buffer: this.bodyStream || this.req,
+                ...options
+            }, (err, req, res) => {
+              this.onerror(err)
+              resolve(null)
+            });
+        }
+        else {
+            proxyServer.web(this.req, this.res, {
+                target: url.origin,
+                buffer: this.bodyStream || this.req,
+                options
+            }, (err, req, res: http.ServerResponse) => {
+              this.onerror(err)
+              resolve(null)
+            });
+        }
+    });
   }
 
   constructor(req: http.IncomingMessage, res: http.ServerResponse) {
