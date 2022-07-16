@@ -23,6 +23,6 @@ export const Query = (param?: string) => params(ParamType.QUERY, param);
 export const Body = (param?: string) => params(ParamType.BODY, param);
 export const Param = (param?: string) => params(ParamType.PARAM, param);
 export const Ctx = () => params(ParamType.CTX)
-type FormDataParamType = 'data' | 'files'
+export type FormDataParamType = 'data' | 'files'
 export const FormData = (param?: FormDataParamType) => params(ParamType.FORM_DATA, param)
-export const Cookie = (param?: string) => params(ParamType.COOKIE, param)
+export const Cookie = () => params(ParamType.COOKIE)

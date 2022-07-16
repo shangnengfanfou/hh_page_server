@@ -1,7 +1,7 @@
 import App from './src/application'
 import Context from './src/context'
 import { Next } from './src/middleware'
-import { Controller, Body, Post, Use, Param, Query, Get } from './src/decorators'
+import { Controller, Body, Post, Use, Param, Query, Get, FormData, Cookie } from './src/decorators'
 
 const app = new App()
 
@@ -16,9 +16,9 @@ app.use(async (ctx: Context, next: Next) => {
   try {
     await next()
   } catch (err) {
-    console.log(2222)
     throw err
   }
+  console.log(2222)
 })
 
 async function mid1(ctx: Context, next: Next) {
@@ -38,10 +38,12 @@ class ApiController {
   @Use(mid1)
   @Use(mid2)
   @Post('/test/:id')
-  async test1(@Body() body: BodyDto, @Param('id') id: string) {
+  async test1(@Body() body: BodyDto, @Param('id') id: string, @Query('test') testStr: string, @FormData() data, @Cookie() cookie) {
+    console.log('2323232', data, testStr, cookie)
     return {
       ...body,
-      id
+      id,
+      ...cookie
     }
   }
 

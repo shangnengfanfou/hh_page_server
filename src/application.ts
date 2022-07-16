@@ -48,7 +48,7 @@ export default class Application extends EventEmitter {
           ctx.pathRegexp = route.path
           ctx.params = isMatch.params
           const onerror = err => ctx.onerror(err)
-          const handleResponse = (data) => ctx.respond(data)
+          const handleResponse = () => ctx.respond()
           const middleware = [...this.middleware, ...route.routeMiddlewares, route.routeHandler]
           const fnMiddleware = this.compose(middleware)
           return fnMiddleware(ctx, null).then(handleResponse).catch(onerror)

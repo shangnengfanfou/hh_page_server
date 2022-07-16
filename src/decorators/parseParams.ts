@@ -6,19 +6,19 @@ import Context from '../context'
 export const parseParam = async (ctx: Context, metadata: ParamsMeta) => {
     switch (metadata.type) {
         case ParamType.QUERY:
-            return await parseQueryParam(ctx.query, metadata);
+            return await parseQueryParam(ctx.query, metadata)
         case ParamType.BODY:
-            return await parseBodyParam(ctx.body, metadata);
+            return await parseBodyParam(ctx.body, metadata)
         case ParamType.PARAM:
-            return await parseParamParam(ctx.params, metadata);
+            return await parseParamParam(ctx.params, metadata)
         case ParamType.CTX:
-            return ctx;
+            return ctx
         case ParamType.FORM_DATA:
-            return ctx.res;
+            return parseFormDataParam(ctx, metadata)
         case ParamType.COOKIE:
-            return await parseQueryParam(ctx.cookies, metadata);
+            return ctx.cookies
         default: 
-            return null;
+            return null
     }
 }
 
@@ -89,5 +89,20 @@ const parseParamParam = async (params: object, metadata: ParamsMeta) => {
             throw new Error(errors.map(err => `${Object.values(err.constraints)?.join(',')}`).join(' | '));
         }
         return entity;
+    }
+}
+
+const parseFormDataParam = async (ctx: Context, metadata: ParamsMeta) => {
+    if (!ctx.req.headers['content-type']?.includes('multipart/form-data')) return null
+    if (metadata.param) {
+        const param = metadata.param;
+        if(param === 'data') {
+            return ctx.body
+        } 
+        if(param === 'files') {
+            return ctx.files
+        }
+    } else {
+        return { data: ctx.body, files: ctx.files };
     }
 }

@@ -3,7 +3,6 @@ import * as crypto from 'crypto'
 import { Status } from './utils'
 import { Stream, PassThrough } from 'stream'
 import * as formidable from 'formidable'
-import * as util from 'util'
 
 interface ObjectData<T = any> {
   [propName: string]: T
@@ -20,6 +19,16 @@ interface CookieOption {
   sameSite?: 'unspecified' | 'no_restriction' | 'lax' | 'strict'
 }
 
+interface File {
+  filepath: string
+  filename: string
+  originalFilename: string
+  size: number
+  lastModifiedDate: Date
+  mimetype: string
+  param: string
+}
+
 export default class Context {
   requestId: string
   ip = ''
@@ -34,7 +43,7 @@ export default class Context {
   cookies: ObjectData = {}
   log: ObjectData = {}
   bodyStream: PassThrough
-  files: formidable.Files = null
+  files: File[] = null
   respData: any
 
 
@@ -136,7 +145,33 @@ export default class Context {
           if (err)
               reject(err);
           this.body = fields
-          this.files = files
+          let filesArr = []
+          for (const param in files) {
+            if (Object.prototype.toString.call(files[param]) === '[object Array]') {
+              filesArr = filesArr.concat(files[param].map(v => ({
+                filepath: v.filepath,
+                filename: v.newFilename,
+                originalFilename: v.originalFilename,
+                size: v.size,
+                lastModifiedDate: v.lastModifiedDate,
+                mimetype: v.mimetype,
+                param
+              })))
+            }
+            if (Object.prototype.toString.call(files[param]) === '[object Object]') {
+              const v =files[param]
+              filesArr.push({
+                filepath: v.filepath,
+                filename: v.newFilename,
+                originalFilename: v.originalFilename,
+                size: v.size,
+                lastModifiedDate: v.lastModifiedDate,
+                mimetype: v.mimetype,
+                param
+              })
+            }
+          }
+          this.files = filesArr
           resolve(null);
       });
     });
@@ -182,7 +217,7 @@ export default class Context {
     this.res.end()
   }
 
-  respond(data1: any) {
+  respond() {
     if (!this.res.writable) return
 
     const res = this.res
