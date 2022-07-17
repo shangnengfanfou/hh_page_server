@@ -57,6 +57,7 @@ export default class Context {
   bodyStream: PassThrough
   files: File[] = null
   respData: any
+  bodyBuffer: Buffer = null
   isProxy: boolean = false
 
 
@@ -109,10 +110,6 @@ export default class Context {
   parseBody() {
     return new Promise((resolve, reject) => {
       if (this.body !== null) return resolve(null)
-      const contentType = this.req.headers['content-type']
-      if (!contentType?.includes('application/json') && !contentType?.includes('application/x-www-form-urlencoded')) {
-        return resolve(null)
-      }
       let chunks: Buffer[] = []
       let size = 0
       this.req.on('data', (chunk: Buffer) => {
@@ -129,6 +126,8 @@ export default class Context {
         try {
           const buf = Buffer.concat(chunks)
           const payload = buf.toString('utf-8')
+          const contentType = this.req.headers['content-type']
+          this.bodyBuffer = buf
           // 如果声明了json类型，尝试解析为json
           if (this.req.headers['content-type'].includes('application/json') && payload) {
             this.body = JSON.parse(payload)
