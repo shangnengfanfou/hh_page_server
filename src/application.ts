@@ -10,11 +10,13 @@ export default class Application extends EventEmitter {
   server: http.Server
   middleware: Middleware[]
   compose: (middleware: Middleware[]) => Middleware
+  statics: Map<string, string>
   
   constructor() {
     super()
     this.middleware = []
     this.compose = compose
+    this.statics = new Map<string, string>()
   }
   use (wm: Middleware) {
     this.middleware.push(wm)
@@ -31,11 +33,16 @@ export default class Application extends EventEmitter {
     const handleRequest = async (req: http.IncomingMessage, res: http.ServerResponse) => {
       const ctx = this.createContext(req, res)
       try {
+        if (ctx.req.method === 'GET') {
+          for (const [prefix, root] of this.statics) {
+            if (ctx.url.startsWith(prefix)) {
+              return ctx.sendFile(prefix, root)
+            }
+          }
+        }
         await ctx.parseBody()
         await ctx.parseFormData()
-        return this.handleRequest(ctx).catch(err => {
-          throw err
-        })
+        return this.handleRequest(ctx)
       } catch (err) {
         ctx.onerror(err)
       }
@@ -63,6 +70,7 @@ export default class Application extends EventEmitter {
         }
       }
     }
+    res.end()
   }
 
   createContext (req: http.IncomingMessage, res: http.ServerResponse) {
@@ -79,5 +87,10 @@ export default class Application extends EventEmitter {
     if (err.status === 404) return
     const msg = err.stack || err.toString()
     console.error(`\n${msg.replace(/^/gm, '  ')}\n`)
+  }
+
+  static(prefix: string, root: string) {
+    if (!prefix.startsWith('/')) prefix = '/' + prefix
+    this.statics.set(prefix, root)
   }
 }

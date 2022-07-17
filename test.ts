@@ -1,4 +1,5 @@
 import { App, Context, Next, Controller, Body, Post, Use, Param, Query, Get, FormData, Cookie, Ctx } from './src'
+import * as path from 'path'
 
 const app = new App()
 
@@ -91,6 +92,8 @@ class ProxyController {
     }
   }
 }
+
+app.static('views', path.join(__dirname, 'img'))
 
 app.listen(8090)
 

@@ -4,6 +4,9 @@ import { Status } from './utils'
 import { Stream, PassThrough } from 'stream'
 import * as formidable from 'formidable'
 import * as httpProxy from 'http-proxy'
+import * as path from 'path'
+import * as fs from 'fs'
+import * as mime from 'mime'
 
 const proxyServer = httpProxy.createProxyServer({
   changeOrigin: true,
@@ -304,6 +307,29 @@ export default class Context {
             });
         }
     });
+  }
+
+  sendFile(prefix: string, root: string) {
+    let exp = new RegExp(`^${prefix}`);
+    let target = this.url.replace(exp, '');
+    let file = path.join(root, target);
+    if (file.startsWith(root) === false) {
+        this.res.statusCode = 403;
+        return this.res.end();
+    }
+    if (fs.existsSync(file) === false) {
+      this.res.statusCode = 404;
+      return this.res.end();
+    }
+    let stat = fs.statSync(file);
+    if (stat.isDirectory() === true) {
+      this.res.statusCode = 403;
+      return this.res.end();
+    }
+    let type = mime.getType(file);
+    this.res.setHeader('Content-Length', stat.size);
+    this.res.setHeader('Content-Type', type);
+    fs.createReadStream(file).pipe(this.res);
   }
 
   constructor(req: http.IncomingMessage, res: http.ServerResponse) {

@@ -10,10 +10,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/mime": "^2.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.13.2",
     "formidable": "^2.0.1",
     "http-proxy": "^1.18.1",
+    "mime": "^3.0.0",
     "path-to-regexp": "^6.2.1",
     "reflect-metadata": "^0.1.13"
   },
